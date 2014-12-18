@@ -438,13 +438,7 @@ Matrix& Matrix::rowSwap(int i, int j) { // Mathematical Subscripts
     }
     return *this;
 }
-bool Matrix::QSquare(){
-    assert(mNumCols == mNumRows);
-    if(mNumRows == mNumCols){
-        return 1;
-    }
-    else return 0;
-}
+
 
 double Matrix::Norm2Vec(){
     int i,j;
@@ -537,7 +531,7 @@ Matrix& Matrix::transpose(){
     return *this;
 }
 
-int Matrix::transpose(Matrix& res){
+    int Matrix::transpose(Matrix& res){
     int i, j;
     for(i = 1; i <= mNumCols; i++)
         for(j = 1; j <= mNumRows; j++){

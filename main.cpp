@@ -94,12 +94,12 @@ int main(int argc, const char * argv[]) {
     start = std::clock();
     
     Profiles res(nCells);
-    sol.Solve(res, &EulerSolver::FORCEFlux);
+    sol.Solve(res, &EulerSolver::LFFlux);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout<<"Duration "<< duration <<'\n';
     
     std::ofstream density;
     std::ofstream velocity;
     std::ofstream pressure;
-    PrintDensity(res, nCells);
+//    PrintDensity(res, nCells);
 }

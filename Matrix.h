@@ -85,15 +85,6 @@ public:
     Matrix& transpose();
     double Norm2Vec();
     int transpose(Matrix& res);
-    bool QSquare();
-    void SetIdentity(){
-        if( !QSquare() ){
-            return;
-        }
-        for (int i = 0; i != this -> mNumCols; i++) {
-            data[i][i] = 1;
-        }
-    }
 
 public:
     friend std::ostream& operator<<(std::ostream& out, const Matrix& m);
