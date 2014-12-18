@@ -49,18 +49,23 @@ public:
 class Profiles{ // Solution, Mathematical Subscripts, index = 1, the first element
 public:
     std::vector<Cell> data;
+    int nCells;
 public:
-    Profiles(int nCells){
+    Profiles(int nCells):
+    nCells(nCells){
         data = std::vector<Cell>(nCells);
         for (int i = 0; i != nCells; i++) {
             data[i] = Cell();
         }
     }
 public: // Inheritance
+    // Boundary
     Cell& operator[](int index){
+        assert(index >= 1 && index <= nCells);
         return data[index - 1];
     }
     const Cell& operator[](int index) const{
+        assert(index >= 1 && index <= nCells);
         return data[index - 1];
     }
 public:
@@ -178,6 +183,24 @@ public:
         temp -= a * (uNewRight(u, index, limiter) - uNewLeft(u, index, limiter));
         temp *= 0.5;
         return temp;
+    }
+    void HighResComputeForward(Profiles& uPre, Profiles& uPost, double dt, pLimiter limiter){
+        for (int i = 2; i <= nCells - 1; i++) {
+            uPost[i] = uPre[i] - dt / xStep * (KTNumericalFlux(uPre, i, limiter) - KTNumericalFlux(uPre, i - 1, limiter));
+        }
+    }
+    Profiles HighResSolve(pLimiter limiter){
+        ComputeSpatialStep();
+        Profiles uPre(nCells);
+        Profiles uPost(nCells);
+        InitiateValues(uPost);
+        double tNow = 0;
+        while (startTime + tNow < finalTIme) {
+            uPre = uPost;
+            double dt = ComputeTimeStep(uPre, tNow);
+            tNow += dt;
+        }
+        return uPost;
     }
 };
 
