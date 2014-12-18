@@ -218,7 +218,12 @@ mVector Limiter::superbee(const mVector& R){
     return temp;
 }
 double Limiter::vanLeer(double r) {
+    if (r == INFINITY || r == -INFINITY) {
+        return 1;
+    }
+    else {
     return (r + std::abs(r)) / (1 + std::abs(r));
+    }
 }
 mVector Limiter::vanLeer(const mVector &R) {
     mVector temp(3);

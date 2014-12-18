@@ -167,7 +167,12 @@ public:
     mVector vectorR(const Profiles& u, int index){
         mVector r(3);
         for (int i = 0; i != 3; i++) {
+            if (u[index][i] - u[index - 1][i] == 0) {
+                r[i] = 0;
+            }
+            else {
             r[i] = (u[index] - u[index - 1])[i] / (u[index + 1] - u[index])[i];
+            }
         }
         return r;
     }
@@ -194,7 +199,7 @@ public:
         temp *= 0.5;
         return temp;
     }
-    void HighResComputeForward(Profiles& uPre, Profiles& uPost, double dt, pLimiter limiter){
+    void HighResComputeForward(const Profiles& uPre, Profiles& uPost, double dt, pLimiter limiter){
         for (int i = 1; i <= nCells; i++) {
             uPost[i] = uPre[i] - dt / xStep * (KTNumericalFlux(uPre, i, limiter) - KTNumericalFlux(uPre, i - 1, limiter));
         }
@@ -208,7 +213,6 @@ public:
         while (tNow < finalTIme) {
             uPre = uPost;
             double dt = ComputeTimeStep(uPre, tNow);
-            std::cout << uNewRight(uPre, 3, limiter);
             HighResComputeForward(uPre, uPost, dt, limiter);
             tNow += dt;
         }
