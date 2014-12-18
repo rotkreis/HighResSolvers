@@ -14,7 +14,14 @@
 #include "Matrix.h"
 
 typedef double (*pFunc)(double x);
+typedef mVector (*pLimiter)(const mVector& r);
+
 #define gamma 1.4
+double min(const mVector& vec);
+double max(const mVector& vec);
+double min(double x1, double x2);
+double max(double x1, double x2);
+double absMax(const mVector& v);
 
 class Cell : public mVector{ // Each Cell
 public:
@@ -47,6 +54,9 @@ public:
     }
 public: // Inheritance
     Cell& operator[](int index){
+        return data[index - 1];
+    }
+    const Cell& operator[](int index) const{
         return data[index - 1];
     }
 public:
@@ -117,7 +127,7 @@ public:
     
     //------------------ Fluxes --------------------
     mVector Flux(mVector& u);
-    mVector LFFlux(Cell& left, Cell& right, double dt);
+    mVector LFFlux(Cell& left,Cell& right, double dt);
     mVector HLLFlux(Cell& left, Cell& right, double dt);
     mVector LWFlux(Cell& left, Cell& right, double dt);
     mVector FORCEFlux(Cell& left, Cell& right, double dt);
@@ -125,8 +135,53 @@ public:
     void ComputeForward(Profiles& uPre, Profiles& uPost, double dt, mVector (EulerSolver::*method)(Cell&, Cell&, double));
     void Solve(Profiles& res, mVector (EulerSolver::*method)(Cell&, Cell&, double));
     void GetOutput(Profiles& uPost, Profiles& res);
+    
+    // ------------- HighRes --------
+    mVector componentWiseMultiply(const mVector& v1, const mVector& v2){
+        assert(v1.dim() == v2.dim());
+        mVector temp(v1.dim());
+        for (int i = 0; i != temp.dim(); i++) {
+            temp[i] = v1[1] * v2[i];
+        }
+        return temp;
+    }
+    Cell vectorR(const Profiles& u, int index){
+        mVector r(3);
+        for (int i = 0; i != 3; i++) {
+            r[i] = (u[index][i] - u[index - 1][i]) / (u[index + 1][i] - u[index][i]);
+        }
+        return r;
+    }
+    
+    Cell uNewLeft(const Profiles& u, int index, pLimiter limiter){// index for i + 1/2, index- 1 for i - 1/2
+        for (int i = 0; i != 3; i++) {
+            assert((u[index+1] - u[index])[i] != 0);
+        }
+        Cell r = vectorR(u, index);
+        return u[index] + 0.5 * componentWiseMultiply(limiter(r), u[index+1] - u[index]);
+    }
+    mVector uNewRight(const Profiles& u, int index, pLimiter limiter){ // index for i + 1/2
+        for (int i = 0; i != 3; i++) {
+            assert((u[index+2] - u[index+1])[i] != 0);
+        }
+        mVector r = vectorR(u, index + 1);
+        return u[index + 1] - 0.5 * componentWiseMultiply(limiter(r), u[index + 2] - u[index - 1]);
+    }
+    mVector KTNumericalFlux(const Profiles& u, int index, pLimiter limiter){
+        mVector temp;
+        double a = max(absMax(GetEigenValues(uNewRight(u, index, limiter))), <#double x2#>)
+        return temp;
+    }
 };
 
+namespace Limiter {
+    double minmod(double r);
+    mVector minmod(const mVector& R);
+    double superbee(double r);
+    mVector superbee(const mVector& R);
+    double vanLeer(double r);
+    mVector vanLeer(const mVector& R);
+}
 
 
     

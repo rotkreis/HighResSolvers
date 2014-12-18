@@ -7,7 +7,7 @@
 //
 
 #include "EulerEquations.h"
-double min(mVector& vec){
+double min(const mVector& vec){
     double min = vec[0];
     for (int i = 1; i != vec.dim(); i++) {
         if(vec[i] < min){
@@ -32,7 +32,7 @@ double max(double x1, double x2){
         return x2;
     }
 }
-double max(mVector& vec){
+double max(const mVector& vec){
     double max = vec[0];
     for (int i = 1; i != vec.dim(); i++) {
         if (vec[i] > max) {
@@ -41,6 +41,16 @@ double max(mVector& vec){
     }
     return max;
 }
+double absMax(const mVector& vec){
+    double max = std::abs(vec[0]);
+    for (int i = 1; i != vec.dim(); i++) {
+        if (std::abs(vec[i]) > max) {
+            max = std::abs(vec[i]);
+        }
+    }
+    return max;
+}
+
 double EulerSolver::IVAverage(int index, double x1, double x2, int n){ // Initiate values, n = number of points from each interval
     assert(x2 > x1);
     double h = (x2 - x1) / (n - 1);
@@ -145,7 +155,7 @@ mVector EulerSolver::Flux(mVector &u){
     temp[2] = gamma * u[1] * u[2] / u[0] - 0.5 * (gamma - 1) * pow(u[1],3) / pow(u[0],2);
     return temp;
 }
-mVector EulerSolver::LFFlux(Cell &left, Cell &right, double dt){
+mVector EulerSolver::LFFlux(Cell& left, Cell& right, double dt){
     return 0.5 * (Flux(left) + Flux(right)) - (right - left) / (2 * dt / xStep);
 }
 mVector EulerSolver::LWFlux(Cell &left, Cell &right, double dt){
@@ -175,4 +185,36 @@ mVector EulerSolver::HLLFlux(Cell &left, Cell &right, double dt){ // ref Toro
     }
     return temp;
 }
+
+double Limiter::minmod(double r){
+    return max(0, min(1, r));
+}
+mVector Limiter::minmod(const mVector& R){
+    mVector temp(3);
+    temp[0] = minmod(R[0]);
+    temp[1] = minmod(R[1]);
+    temp[2] = minmod(R[2]);
+    return temp;
+}
+double Limiter::superbee(double r) {
+    return max(max(0,min(2 * r,1)), min(r,2));
+}
+mVector Limiter::superbee(const mVector& R){
+    mVector temp(3);
+    temp[0] = superbee(R[0]);
+    temp[1] = superbee(R[1]);
+    temp[2] = superbee(R[2]);
+    return temp;
+}
+double Limiter::vanLeer(double r) {
+    return (r + std::abs(r)) / (1 + std::abs(r));
+}
+mVector Limiter::vanLeer(const mVector &R) {
+    mVector temp(3);
+    temp[0] = vanLeer(R[0]);
+    temp[1] = vanLeer(R[1]);
+    temp[2] = vanLeer(R[2]);
+    return temp;
+}
+
 
