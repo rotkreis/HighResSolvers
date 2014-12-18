@@ -61,11 +61,21 @@ public:
 public: // Inheritance
     // Boundary
     Cell& operator[](int index){
-        assert(index >= 1 && index <= nCells);
+        if (index < 1) {
+            return data[0];
+        }
+        if (index > nCells) {
+            return data[nCells - 1];
+        }
         return data[index - 1];
     }
     const Cell& operator[](int index) const{
-        assert(index >= 1 && index <= nCells);
+        if (index < 1) {
+            return data[0];
+        }
+        if (index > nCells) {
+            return data[nCells -1];
+        }
         return data[index - 1];
     }
 public:
@@ -155,29 +165,29 @@ public:
         return temp;
     }
     mVector vectorR(const Profiles& u, int index){
-        mVector r;
+        mVector r(3);
         for (int i = 0; i != 3; i++) {
-            r[i] = (u[index][i] - u[index - 1][i]) / (u[index + 1][i] - u[index][i]);
+            r[i] = (u[index] - u[index - 1])[i] / (u[index + 1] - u[index])[i];
         }
         return r;
     }
     // hard to name for L R and i +- 1/2! !!!! !!! oh me !!
     mVector uNewLeft(const Profiles& u, int index, pLimiter limiter){// index for i + 1/2, index- 1 for i - 1/2
-        for (int i = 0; i != 3; i++) {
-            assert((u[index+1] - u[index])[i] != 0);
-        }
+//        for (int i = 0; i != 3; i++) {
+//            assert((u[index+1] - u[index])[i] != 0);
+//        }
         mVector r = vectorR(u, index);
         return u[index] + 0.5 * componentWiseMultiply(limiter(r), u[index+1] - u[index]);
     }
     mVector uNewRight(const Profiles& u, int index, pLimiter limiter){ // index for i + 1/2
-        for (int i = 0; i != 3; i++) {
-            assert((u[index+2] - u[index+1])[i] != 0);
-        }
+//        for (int i = 0; i != 3; i++) {
+//            assert((u[index+2] - u[index+1])[i] != 0);
+//        }
         mVector r = vectorR(u, index + 1);
         return u[index + 1] - 0.5 * componentWiseMultiply(limiter(r), u[index + 2] - u[index - 1]);
     }
     mVector KTNumericalFlux(const Profiles& u, int index, pLimiter limiter){// index for i + 1/2, index - 1 for i - 1/2
-        mVector temp;
+        mVector temp(3);
         double a = max(absMax(GetEigenValues(u[index])), absMax(GetEigenValues(u[index + 1])));
         temp = (Flux(uNewRight(u, index, limiter)) + Flux(uNewLeft(u, index, limiter)));
         temp -= a * (uNewRight(u, index, limiter) - uNewLeft(u, index, limiter));
@@ -185,7 +195,7 @@ public:
         return temp;
     }
     void HighResComputeForward(Profiles& uPre, Profiles& uPost, double dt, pLimiter limiter){
-        for (int i = 2; i <= nCells - 1; i++) {
+        for (int i = 1; i <= nCells; i++) {
             uPost[i] = uPre[i] - dt / xStep * (KTNumericalFlux(uPre, i, limiter) - KTNumericalFlux(uPre, i - 1, limiter));
         }
     }
@@ -194,10 +204,12 @@ public:
         Profiles uPre(nCells);
         Profiles uPost(nCells);
         InitiateValues(uPost);
-        double tNow = 0;
-        while (startTime + tNow < finalTIme) {
+        double tNow = startTime;
+        while (tNow < finalTIme) {
             uPre = uPost;
             double dt = ComputeTimeStep(uPre, tNow);
+            std::cout << uNewRight(uPre, 3, limiter);
+            HighResComputeForward(uPre, uPost, dt, limiter);
             tNow += dt;
         }
         return uPost;

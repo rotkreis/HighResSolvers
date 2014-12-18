@@ -131,7 +131,9 @@ void EulerSolver::ComputeForward(Profiles& uPre, Profiles& uPost, double dt, mVe
     for (int i = 2; i <= nCells - 1; i++) {
         uPost[i] = uPre[i] - dt / xStep * ((this->*pf)(uPre[i], uPre[i + 1], dt) - (this->*pf)(uPre[i - 1], uPre[i], dt));
     }
-    uPost[1] = uPre[1] - dt / xStep * ((this->*pf)(uPre[2], uPre[1], dt) - (this->*pf)(uPre[1], uPre[1], dt)); // Profiles has primitive subscripts
+    // manual handling of boundary, 0 -> 1
+    uPost[1] = uPre[1] - dt / xStep * ((this->*pf)(uPre[2], uPre[1], dt) - (this->*pf)(uPre[1], uPre[1], dt)); // Profiles has mathematical subscripts
+    // nCells + 1 -> nCells
     uPost[nCells] = uPre[nCells] - dt / xStep * ((this->*pf)(uPre[nCells], uPre[nCells], dt) - (this->*pf)(uPre[nCells - 1], uPre[nCells], dt));
 }
 void EulerSolver::Solve(Profiles& res, mVector (EulerSolver::*method)(Cell&, Cell&, double)){

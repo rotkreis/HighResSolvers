@@ -84,26 +84,24 @@ void PrintPressure(Profiles& u, int nCells){
 int main(int argc, const char * argv[]) {
     EulerSolver sol(rho, p, u);
     //    EulerSolver sol(rho123,p123,u123);
-    int nCells = 100;
+    int nCells = 20;
     sol.SetCellNumber(nCells);
     sol.SetRange(0, 1);
-    sol.SetTime(0, 0.25);
+    sol.SetTime(0, 0.05);
     std::clock_t start;
     double duration;
     
     start = std::clock();
-    
     Profiles res(nCells);
-    sol.Solve(res, &EulerSolver::LFFlux);
+//    res = sol.HighResSolve(&Limiter::minmod);
+//    sol.Solve(res, &EulerSolver::LFFlux);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout<<"Duration "<< duration <<'\n';
     
-    std::ofstream density;
-    std::ofstream velocity;
-    std::ofstream pressure;
     if (-1.0 / 0.0 == -INFINITY) {
         std::cout << 1 / INFINITY << std::endl;
         std::cout << max(1, -INFINITY) << std::endl;
+        std::cout << 0.0/0.0 << std::endl;
     }
-//    PrintDensity(res, nCells);
+    PrintDensity(res, nCells);
 }
