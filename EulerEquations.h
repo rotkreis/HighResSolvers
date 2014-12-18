@@ -99,7 +99,7 @@ public:
     void ComputeSpatialStep(){
         xStep = (xMax - xMin) / nCells;
     }
-    double IVAverage(int index, double x1, double x2, int n){
+    double IVAverage(int index, double x1, double x2, int n){ // Initiate values, n = number of points from each interval
         assert(x2 > x1);
         double h = (x2 - x1) / (n - 1);
         double sum = 0;
@@ -165,13 +165,6 @@ public:
     mVector LFFlux(Cell& left, Cell& right, double dt){
         return 0.5 * (Flux(left) + Flux(right)) - (right - left) / (2 * dt / xStep);
     }
-    void LFComputeForward(Profiles& uPre, Profiles& uPost, double dt){
-        for (int i = 2; i <= nCells - 1; i++) {
-            uPost[i] = uPre[i] - dt / xStep * (LFFlux(uPre[i], uPre[i+1], dt) - LFFlux(uPre[i - 1], uPre[i], dt));
-        }
-        uPost[1] = uPre[1] - dt / xStep * (LFFlux(uPre[1], uPre[2], dt) - LFFlux(uPre[1], uPre[1], dt));
-        uPost[nCells] = uPre[nCells] - dt/xStep * (LFFlux(uPre[nCells], uPre[nCells], dt) - LFFlux(uPre[nCells - 1], uPre[nCells], dt));
-    }
     double ComputeTimeStep(Profiles& profile, double atTime){
         double tMin = 0.1;
         for (int i = 1 ; i <= nCells; i++) {
@@ -195,23 +188,9 @@ public:
         }
         return tMin;
     }
-    void LFSolve(Profiles& res){
-        ComputeSpatialStep();
-        Profiles uPre(nCells);
-        Profiles uPost(nCells);
-        InitiateValues(uPost);
-        double tNow = 0;
-        while (startTime + tNow < finalTIme) {
-            uPre = uPost;
-            double dt = ComputeTimeStep(uPre, tNow);
-            LFComputeForward(uPre, uPost, dt);
-            tNow += dt;
-        }
-        GetOutput(uPost, res);
-        std::cout << "LF Finished!" <<endl;
-    }
+
 // ------------------HLL
-    mVector HLLFlux(Cell& left, Cell& right, double dt){
+    mVector HLLFlux(Cell& left, Cell& right, double dt){ // ref Toro
         mVector temp(3);
         mVector LeftEigenvalues = GetEigenValues(left);
         mVector RightEigenvalues = GetEigenValues(right);
@@ -230,28 +209,7 @@ public:
         }
         return temp;
     }
-    void HLLComputeForward(Profiles& uPre, Profiles& uPost, double dt){
-        for (int i = 2; i <= nCells - 1; i++) {
-            uPost[i] = uPre[i] - dt / xStep * (HLLFlux(uPre[i], uPre[i+1], dt) - HLLFlux(uPre[i - 1], uPre[i], dt));
-        }
-        uPost[1] = uPre[1] - dt / xStep * (HLLFlux(uPre[2], uPre[1], dt) - HLLFlux(uPre[1], uPre[1], dt));
-        uPost[nCells] = uPre[nCells] - dt / xStep * (HLLFlux(uPre[nCells], uPre[nCells], dt) - HLLFlux(uPre[nCells - 1], uPre[nCells], dt));
-    }
-    void HLLSolve(Profiles& res) {
-        ComputeSpatialStep();
-        Profiles uPre(nCells);
-        Profiles uPost(nCells);
-        InitiateValues(uPost);
-        double tNow = 0;
-        while (startTime + tNow < finalTIme) {
-            uPre = uPost;
-            double dt = ComputeTimeStep(uPre, tNow);
-            HLLComputeForward(uPre, uPost, dt);
-            tNow += dt;
-        }
-        GetOutput(uPost, res);
-        std::cout << "HLL finished!" << std::endl;
-    }
+
     // ------------------LW
     mVector LWFlux(Cell& left, Cell& right, double dt){
         mVector temp = .5 * (left + right) - 0.5 * dt / xStep * (Flux(right) - Flux(left));
@@ -261,14 +219,14 @@ public:
     mVector FORCEFlux(Cell& left, Cell& right, double dt){
         return 0.5 * (LWFlux(left, right, dt) + LFFlux(left, right, dt));
     }
-    void FORCEComputeForward(Profiles& uPre, Profiles& uPost, double dt){
+    void ComputeForward(Profiles& uPre, Profiles& uPost, double dt, mVector (EulerSolver::*pf)(Cell&, Cell&, double)){
         for (int i = 2; i <= nCells - 1; i++) {
-            uPost[i] = uPre[i] - dt / xStep * (FORCEFlux(uPre[i], uPre[i + 1], dt) - FORCEFlux(uPre[i - 1], uPre[i], dt));
+            uPost[i] = uPre[i] - dt / xStep * ((this->*pf)(uPre[i], uPre[i + 1], dt) - (this->*pf)(uPre[i - 1], uPre[i], dt));
         }
-        uPost[1] = uPre[1] - dt / xStep * (FORCEFlux(uPre[2], uPre[1], dt) - FORCEFlux(uPre[1], uPre[1], dt));
-        uPost[nCells] = uPre[nCells] - dt / xStep * (FORCEFlux(uPre[nCells], uPre[nCells], dt) - FORCEFlux(uPre[nCells - 1], uPre[nCells], dt));
+        uPost[1] = uPre[1] - dt / xStep * ((this->*pf)(uPre[2], uPre[1], dt) - (this->*pf)(uPre[1], uPre[1], dt)); // Profiles has primitive subscripts
+        uPost[nCells] = uPre[nCells] - dt / xStep * ((this->*pf)(uPre[nCells], uPre[nCells], dt) - (this->*pf)(uPre[nCells - 1], uPre[nCells], dt));
     }
-    void FORCESolve(Profiles& res){
+    void Solve(Profiles& res, mVector (EulerSolver::*method)(Cell&, Cell&, double)){
         ComputeSpatialStep();
         Profiles uPre(nCells);
         Profiles uPost(nCells);
@@ -277,11 +235,10 @@ public:
         while (startTime + tNow < finalTIme) {
             uPre = uPost;
             double dt = ComputeTimeStep(uPre, tNow);
-            FORCEComputeForward(uPre, uPost, dt);
+            ComputeForward(uPre, uPost, dt, method);
             tNow += dt;
         }
         GetOutput(uPost, res);
-        std::cout << "FORCE Finished!" <<endl;
     }
     void GetOutput(Profiles& uPost, Profiles& res){
         for (int i = 1; i <= nCells; i++) {
