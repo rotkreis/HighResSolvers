@@ -22,6 +22,9 @@ double max(const mVector& vec);
 double min(double x1, double x2);
 double max(double x1, double x2);
 double absMax(const mVector& v);
+double GetDensity(const mVector& vec);
+double GetVelocity(const mVector& vec);
+double GetPressure(const mVector& vec);
 
 class Cell : public mVector{ // Each Cell
 public:
@@ -41,6 +44,7 @@ public:
         return (gamma - 1) * ((*this)[2] - 0.5 * pow((*this)[1], 2) / (*this)[0]);
     }
 };
+
 
 class Profiles{ // Solution, Mathematical Subscripts, index = 1, the first element
 public:
@@ -122,11 +126,11 @@ public:
     }
     // Computations
 public:
-    mVector GetEigenValues(Cell& cell);
+    mVector GetEigenValues(const mVector& cell);
     double ComputeTimeStep(Profiles& profile, double atTime);
     
     //------------------ Fluxes --------------------
-    mVector Flux(mVector& u);
+    mVector Flux(const mVector& u);
     mVector LFFlux(Cell& left,Cell& right, double dt);
     mVector HLLFlux(Cell& left, Cell& right, double dt);
     mVector LWFlux(Cell& left, Cell& right, double dt);
@@ -145,19 +149,19 @@ public:
         }
         return temp;
     }
-    Cell vectorR(const Profiles& u, int index){
-        mVector r(3);
+    mVector vectorR(const Profiles& u, int index){
+        mVector r;
         for (int i = 0; i != 3; i++) {
             r[i] = (u[index][i] - u[index - 1][i]) / (u[index + 1][i] - u[index][i]);
         }
         return r;
     }
-    
-    Cell uNewLeft(const Profiles& u, int index, pLimiter limiter){// index for i + 1/2, index- 1 for i - 1/2
+    // hard to name for L R and i +- 1/2! !!!! !!! oh me !!
+    mVector uNewLeft(const Profiles& u, int index, pLimiter limiter){// index for i + 1/2, index- 1 for i - 1/2
         for (int i = 0; i != 3; i++) {
             assert((u[index+1] - u[index])[i] != 0);
         }
-        Cell r = vectorR(u, index);
+        mVector r = vectorR(u, index);
         return u[index] + 0.5 * componentWiseMultiply(limiter(r), u[index+1] - u[index]);
     }
     mVector uNewRight(const Profiles& u, int index, pLimiter limiter){ // index for i + 1/2
@@ -167,9 +171,12 @@ public:
         mVector r = vectorR(u, index + 1);
         return u[index + 1] - 0.5 * componentWiseMultiply(limiter(r), u[index + 2] - u[index - 1]);
     }
-    mVector KTNumericalFlux(const Profiles& u, int index, pLimiter limiter){
+    mVector KTNumericalFlux(const Profiles& u, int index, pLimiter limiter){// index for i + 1/2, index - 1 for i - 1/2
         mVector temp;
-        double a = max(absMax(GetEigenValues(uNewRight(u, index, limiter))), <#double x2#>)
+        double a = max(absMax(GetEigenValues(u[index])), absMax(GetEigenValues(u[index + 1])));
+        temp = (Flux(uNewRight(u, index, limiter)) + Flux(uNewLeft(u, index, limiter)));
+        temp -= a * (uNewRight(u, index, limiter) - uNewLeft(u, index, limiter));
+        temp *= 0.5;
         return temp;
     }
 };

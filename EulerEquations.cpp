@@ -50,6 +50,15 @@ double absMax(const mVector& vec){
     }
     return max;
 }
+double GetDensity(const mVector& vec){
+    return vec[0];
+}
+double GetVelocity(const mVector& vec){
+    return vec[1]/vec[0];
+}
+double GetPressure(const mVector& vec){
+    return (gamma - 1) * (vec[2] - 0.5 * pow(vec[1], 2) / vec[0]);
+}
 
 double EulerSolver::IVAverage(int index, double x1, double x2, int n){ // Initiate values, n = number of points from each interval
     assert(x2 > x1);
@@ -84,11 +93,11 @@ void EulerSolver::InitiateValues(Profiles& values){
         values.u3(i) = IVAverage(3, xMin + (i - 1) * xStep, xMin + i * xStep, 10);
     }
 }
-mVector EulerSolver::GetEigenValues(Cell& cell){
+mVector EulerSolver::GetEigenValues(const mVector& cell){
     mVector eigenvalues(3);
-    double rho = cell.GetDensity();
-    double u = cell.GetVelocity();
-    double p = cell.GetPressure();
+    double rho = ::GetDensity(cell);
+    double u = ::GetVelocity(cell);
+    double p = ::GetPressure(cell);
     double a = sqrt(gamma * p / rho);
     eigenvalues[0] = u;
     eigenvalues[1] = u - a;
@@ -148,7 +157,7 @@ void EulerSolver::GetOutput(Profiles &uPost, Profiles &res){
     }
 }
 // ----------- Fluxes -----
-mVector EulerSolver::Flux(mVector &u){
+mVector EulerSolver::Flux(const mVector &u){
     mVector temp(3);
     temp[0] = u[1];
     temp[1] = 0.5 * (3 - gamma) * pow(u[1],2) / u[0] + (gamma - 1) * u[2];
