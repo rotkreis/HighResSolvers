@@ -201,7 +201,9 @@ public:
     }
     void HighResComputeForward(const Profiles& uPre, Profiles& uPost, double dt, pLimiter limiter){
         for (int i = 1; i <= nCells; i++) {
-            uPost[i] = uPre[i] - dt / xStep * (KTNumericalFlux(uPre, i, limiter) - KTNumericalFlux(uPre, i - 1, limiter));
+            Profiles temp(nCells);
+//            temp[i] = uPre[i] - 0.5 * dt / xStep * (KTNumericalFlux(uPre, i, limiter) - KTNumericalFlux(uPre, i - 1, limiter));
+            uPost[i] = uPre[i] - dt / xStep * (KTNumericalFlux(temp, i, limiter) - KTNumericalFlux(temp, i - 1, limiter));
         }
     }
     Profiles HighResSolve(pLimiter limiter){
@@ -227,6 +229,19 @@ namespace Limiter {
     mVector superbee(const mVector& R);
     double vanLeer(double r);
     mVector vanLeer(const mVector& R);
+}
+
+template<class T, class pf>
+T midpointRK(T& y0, double ta, double h,int stepNumber, pf& f){
+    T y = y0;
+    double tNow = ta;
+    for (int i = 1; i <= stepNumber; i++) {
+//        T mid = y + 0.5 * h * f(tNow,y);
+        y = y + h * f(tNow + 0.5 * h, y + 0.5 * h * f(tNow, y));
+        tNow += h;
+    }
+    std::cout << y;
+    return y;
 }
 
 
