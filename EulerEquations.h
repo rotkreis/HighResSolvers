@@ -200,15 +200,18 @@ public:
         return temp;
     }
     mVector NFluxWithLimiter(const Profiles& u, int index, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
-        return (this->*method)(uNewLeft(u, index, limiter), uNewRight(u, index, limiter),dt);
+        return (this->*method)(uNewLeft(u, index, limiter), uNewRight(u, index, limiter), dt);
     }
-    void UpdateCell(const Profiles& uPre, Profiles& uPost,int i, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
-        uPost[i] = uPre[i] - dt / xStep * (NFluxWithLimiter(uPre, i, dt, method, limiter) - NFluxWithLimiter(uPre, i - 1, dt, method, limiter));
+    void UpdateCell(const Profiles& inital, const Profiles& mid, Profiles& uPost, int i, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){ // Cannot Use! dt not universal! see below!
+        uPost[i] = inital[i] - dt / xStep * (NFluxWithLimiter(mid, i, dt, method, limiter) - NFluxWithLimiter(mid, i - 1, dt, method, limiter));
     }
     void HighResComputeForward(const Profiles& uPre, Profiles& uPost, double dt,mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
+        Profiles temp(nCells); // Extremly likely to err!!!!!
         for (int i = 1; i <= nCells; i++) {
-            Profiles temp(nCells);
-            UpdateCell(uPre, uPost, i, dt, method, limiter);
+            temp[i] = uPre[i] - 0.5 * dt / xStep * (NFluxWithLimiter(uPre, i, dt, method, limiter) - NFluxWithLimiter(uPre, i - 1, dt, method, limiter));
+        }
+        for (int i = 1; i <= nCells; i++) {
+            uPost[i] = uPre[i] - dt / xStep * (NFluxWithLimiter(temp, i, dt, method, limiter) - NFluxWithLimiter(temp, i - 1, dt, method, limiter));
         }
     }
     Profiles HighResSolve(mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
@@ -221,6 +224,29 @@ public:
             uPre = uPost;
             double dt = ComputeTimeStep(uPre, tNow);
             HighResComputeForward(uPre, uPost, dt, method ,limiter);
+            tNow += dt;
+        }
+        return uPost;
+    }
+    void KTComputeForward(const Profiles& uPre, Profiles& uPost, double dt, pLimiter limiter){
+        Profiles temp(nCells);
+        for (int i = 1; i <= nCells; i++) {
+            temp[i] = uPre[i] - 0.5 * dt / xStep * (KTNumericalFlux(uPre, i, limiter) - KTNumericalFlux(uPre, i - 1, limiter));
+        }
+        for (int i = 1; i <= nCells; i++) {
+            uPost[i] = uPre[i] - dt / xStep * (KTNumericalFlux(temp, i, limiter) - KTNumericalFlux(temp, i - 1, limiter));
+        }
+    }
+    Profiles HighResSolve(pLimiter limiter){
+        ComputeSpatialStep();
+        Profiles uPre(nCells);
+        Profiles uPost(nCells);
+        InitiateValues(uPost);
+        double tNow = startTime;
+        while (tNow < finalTIme) {
+            uPre = uPost;
+            double dt = ComputeTimeStep(uPre, tNow);
+            KTComputeForward(uPre, uPost, dt, limiter);
             tNow += dt;
         }
         return uPost;

@@ -93,7 +93,9 @@ int main(int argc, const char * argv[]) {
     
     start = std::clock();
     Profiles res(nCells);
-    res = sol.HighResSolve(&EulerSolver::LWFlux, &Limiter::vanLeer);
+    res = sol.HighResSolve(&EulerSolver::FORCEFlux, &Limiter::minmod);
+//    res = sol.HighResSolve(&Limiter::minmod);
+
 //    sol.Solve(res, &EulerSolver::HLLFlux);
     duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     std::cout<<"Duration "<< duration <<'\n';
