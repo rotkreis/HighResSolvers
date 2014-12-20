@@ -127,16 +127,12 @@ double EulerSolver::ComputeTimeStep(Profiles& profile, double atTime){
     }
     return tMin;
 }
-void EulerSolver::ComputeForward(Profiles& uPre, Profiles& uPost, double dt, mVector (EulerSolver::*pf)(Cell&, Cell&, double)){
-    for (int i = 2; i <= nCells - 1; i++) {
+void EulerSolver::ComputeForward(Profiles& uPre, Profiles& uPost, double dt, mVector (EulerSolver::*pf)(const mVector&, const mVector&, double)){
+    for (int i = 1; i <= nCells; i++) {
         uPost[i] = uPre[i] - dt / xStep * ((this->*pf)(uPre[i], uPre[i + 1], dt) - (this->*pf)(uPre[i - 1], uPre[i], dt));
     }
-    // manual handling of boundary, 0 -> 1
-    uPost[1] = uPre[1] - dt / xStep * ((this->*pf)(uPre[2], uPre[1], dt) - (this->*pf)(uPre[1], uPre[1], dt)); // Profiles has mathematical subscripts
-    // nCells + 1 -> nCells
-    uPost[nCells] = uPre[nCells] - dt / xStep * ((this->*pf)(uPre[nCells], uPre[nCells], dt) - (this->*pf)(uPre[nCells - 1], uPre[nCells], dt));
 }
-void EulerSolver::Solve(Profiles& res, mVector (EulerSolver::*method)(Cell&, Cell&, double)){
+void EulerSolver::Solve(Profiles& res, mVector (EulerSolver::*method)(const mVector&, const mVector&, double)){
     ComputeSpatialStep();
     Profiles uPre(nCells);
     Profiles uPost(nCells);
@@ -166,18 +162,18 @@ mVector EulerSolver::Flux(const mVector &u){
     temp[2] = gamma * u[1] * u[2] / u[0] - 0.5 * (gamma - 1) * pow(u[1],3) / pow(u[0],2);
     return temp;
 }
-mVector EulerSolver::LFFlux(Cell& left, Cell& right, double dt){
+mVector EulerSolver::LFFlux(const mVector& left, const mVector& right, double dt){
     return 0.5 * (Flux(left) + Flux(right)) - (right - left) / (2 * dt / xStep);
 }
-mVector EulerSolver::LWFlux(Cell &left, Cell &right, double dt){
+mVector EulerSolver::LWFlux(const mVector &left, const mVector &right, double dt){
     mVector temp = .5 * (left + right) - 0.5 * dt / xStep * (Flux(right) - Flux(left));
     return Flux(temp);
 }
-mVector EulerSolver::FORCEFlux(Cell &left, Cell &right, double dt){
+mVector EulerSolver::FORCEFlux(const mVector &left, const mVector &right, double dt){
     return 0.5 * (LWFlux(left, right, dt) + LFFlux(left, right, dt));
 }
 
-mVector EulerSolver::HLLFlux(Cell &left, Cell &right, double dt){ // ref Toro
+mVector EulerSolver::HLLFlux(const mVector &left, const mVector &right, double dt){ // ref Toro
     mVector temp(3);
     mVector LeftEigenvalues = GetEigenValues(left);
     mVector RightEigenvalues = GetEigenValues(right);
@@ -198,6 +194,9 @@ mVector EulerSolver::HLLFlux(Cell &left, Cell &right, double dt){ // ref Toro
 }
 
 double Limiter::minmod(double r){
+    if (r == INFINITY || r == NAN) {
+        return 1;
+    }
     return max(0, min(1, r));
 }
 mVector Limiter::minmod(const mVector& R){
