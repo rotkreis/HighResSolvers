@@ -102,7 +102,7 @@ int main(int argc, const char * argv[]) {
 
     PrintDensity(res, nCells);
     std::cout << endl;
-    sol.Solve(res, &EulerSolver::HLLFlux);
-    PrintDensity(res, nCells);
+//    sol.Solve(res, &EulerSolver::HLLFlux);
+//    PrintDensity(res, nCells);
 
 }

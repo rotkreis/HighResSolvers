@@ -205,13 +205,23 @@ public:
     void UpdateCell(const Profiles& inital, const Profiles& mid, Profiles& uPost, int i, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){ // Cannot Use! dt not universal! see below!
         uPost[i] = inital[i] - dt / xStep * (NFluxWithLimiter(mid, i, dt, method, limiter) - NFluxWithLimiter(mid, i - 1, dt, method, limiter));
     }
-    void HighResComputeForward(const Profiles& uPre, Profiles& uPost, double dt,mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
-        Profiles temp(nCells); // Extremly likely to err!!!!!
-        for (int i = 1; i <= nCells; i++) {
-            temp[i] = uPre[i] - 0.5 * dt / xStep * (NFluxWithLimiter(uPre, i, dt, method, limiter) - NFluxWithLimiter(uPre, i - 1, dt, method, limiter));
+    
+    void IncreasePerformance(const Profiles& u, std::vector<mVector>& performance, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
+        for (int i = 0; i <= nCells; i++) {
+            performance[i] = NFluxWithLimiter(u, i, dt, method, limiter);
         }
+    }
+    void HighResComputeForward(const Profiles& uPre, Profiles& uPost, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
+        Profiles temp(nCells); // Extremly likely to err!!!!!
+        std::vector<mVector> performance(nCells + 1);
+        IncreasePerformance(uPre, performance, dt, method, limiter);
         for (int i = 1; i <= nCells; i++) {
-            uPost[i] = uPre[i] - dt / xStep * (NFluxWithLimiter(temp, i, dt, method, limiter) - NFluxWithLimiter(temp, i - 1, dt, method, limiter));
+            temp[i] = uPre[i] - 0.5 * dt / xStep * (performance[i] - performance[i - 1]);
+        }
+        std::vector<mVector> tempPerformance(nCells + 1);
+        IncreasePerformance(temp, tempPerformance, dt, method, limiter);
+        for (int i = 1; i <= nCells; i++) {
+            uPost[i] = uPre[i] - dt / xStep * (tempPerformance[i] - tempPerformance[i - 1]);
         }
     }
     Profiles HighResSolve(mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
@@ -228,6 +238,7 @@ public:
         }
         return uPost;
     }
+    // ------- KT --------
     void KTComputeForward(const Profiles& uPre, Profiles& uPost, double dt, pLimiter limiter){
         Profiles temp(nCells);
         for (int i = 1; i <= nCells; i++) {
@@ -267,7 +278,6 @@ T midpointRK(T& y0, double ta, double h,int stepNumber, pf& f){
     T y = y0;
     double tNow = ta;
     for (int i = 1; i <= stepNumber; i++) {
-//        T mid = y + 0.5 * h * f(tNow,y);
         y = y + h * f(tNow + 0.5 * h, y + 0.5 * h * f(tNow, y));
         tNow += h;
     }

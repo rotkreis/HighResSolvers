@@ -128,8 +128,12 @@ double EulerSolver::ComputeTimeStep(Profiles& profile, double atTime){
     return tMin;
 }
 void EulerSolver::ComputeForward(Profiles& uPre, Profiles& uPost, double dt, mVector (EulerSolver::*pf)(const mVector&, const mVector&, double)){
+    std::vector<mVector> performance(nCells + 1);
+    for (int i = 0; i <= nCells; i++) {
+        performance[i] = (this->*pf)(uPre[i], uPre[i + 1], dt);
+    }
     for (int i = 1; i <= nCells; i++) {
-        uPost[i] = uPre[i] - dt / xStep * ((this->*pf)(uPre[i], uPre[i + 1], dt) - (this->*pf)(uPre[i - 1], uPre[i], dt));
+        uPost[i] = uPre[i] - dt / xStep * (performance[i] - performance[i - 1]);
     }
 }
 void EulerSolver::Solve(Profiles& res, mVector (EulerSolver::*method)(const mVector&, const mVector&, double)){
