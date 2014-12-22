@@ -161,6 +161,8 @@ public:
     void Solve(Profiles& res, mVector (EulerSolver::*method)(const mVector&, const mVector&, double));
     void GetOutput(Profiles& uPost, Profiles& res);
     
+    typedef mVector (EulerSolver::*pMethod)(const mVector&, const mVector&, double);
+
     // ------------- HighRes --------
     mVector componentWiseMultiply(const mVector& v1, const mVector& v2){
         assert(v1.dim() == v2.dim());
@@ -183,6 +185,7 @@ public:
         return r;
     }
     // hard to name for L R and i +- 1/2! !!!! !!! oh me !!
+    // Reconstruct
     mVector uNewLeft(const Profiles& u, int index, pLimiter limiter){// index for i + 1/2, index- 1 for i - 1/2
         mVector r = vectorR(u, index);
         return u[index] + 0.5 * componentWiseMultiply(limiter(r), u[index+1] - u[index]);
@@ -191,40 +194,28 @@ public:
         mVector r = vectorR(u, index + 1);
         return u[index + 1] - 0.5 * componentWiseMultiply(limiter(r), u[index + 2] - u[index + 1]);
     }
-    mVector KTNumericalFlux(const Profiles& u, int index, pLimiter limiter){// index for i + 1/2, index - 1 for i - 1/2
-        mVector temp(3);
-        double a = max(absMax(GetEigenValues(u[index])), absMax(GetEigenValues(u[index + 1])));
-        temp = (Flux(uNewRight(u, index, limiter)) + Flux(uNewLeft(u, index, limiter)));
-        temp -= a * (uNewRight(u, index, limiter) - uNewLeft(u, index, limiter));
-        temp *= 0.5;
-        return temp;
-    }
-    mVector NFluxWithLimiter(const Profiles& u, int index, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
+    mVector NFluxWithLimiter(const Profiles& u, int index, double dt, pMethod method, pLimiter limiter){
         return (this->*method)(uNewLeft(u, index, limiter), uNewRight(u, index, limiter), dt);
     }
-    void UpdateCell(const Profiles& inital, const Profiles& mid, Profiles& uPost, int i, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){ // Cannot Use! dt not universal! see below!
-        uPost[i] = inital[i] - dt / xStep * (NFluxWithLimiter(mid, i, dt, method, limiter) - NFluxWithLimiter(mid, i - 1, dt, method, limiter));
-    }
-    
-    void IncreasePerformance(const Profiles& u, std::vector<mVector>& performance, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
+    std::vector<mVector> IncreasePerformance(const Profiles& u, double dt, pMethod method, pLimiter limiter){
+        std::vector<mVector> performance(nCells + 1);
         for (int i = 0; i <= nCells; i++) {
             performance[i] = NFluxWithLimiter(u, i, dt, method, limiter);
         }
+        return performance;
     }
-    void HighResComputeForward(const Profiles& uPre, Profiles& uPost, double dt, mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
-        Profiles temp(nCells); // Extremly likely to err!!!!!
-        std::vector<mVector> performance(nCells + 1);
-        IncreasePerformance(uPre, performance, dt, method, limiter);
+    void HighResComputeForward(const Profiles& uPre, Profiles& uPost, double dt, pMethod method, pLimiter limiter){
+        Profiles temp(nCells);
+        std::vector<mVector> performance = IncreasePerformance(uPre, dt, method, limiter);
         for (int i = 1; i <= nCells; i++) {
             temp[i] = uPre[i] - 0.5 * dt / xStep * (performance[i] - performance[i - 1]);
         }
-        std::vector<mVector> tempPerformance(nCells + 1);
-        IncreasePerformance(temp, tempPerformance, dt, method, limiter);
+        std::vector<mVector> tempPerformance = IncreasePerformance(temp, dt, method, limiter);
         for (int i = 1; i <= nCells; i++) {
             uPost[i] = uPre[i] - dt / xStep * (tempPerformance[i] - tempPerformance[i - 1]);
         }
     }
-    Profiles HighResSolve(mVector (EulerSolver::*method)(const mVector&, const mVector&, double), pLimiter limiter){
+    Profiles HighResSolve(pMethod method, pLimiter limiter){
         ComputeSpatialStep();
         Profiles uPre(nCells);
         Profiles uPost(nCells);
@@ -239,6 +230,14 @@ public:
         return uPost;
     }
     // ------- KT --------
+    mVector KTNumericalFlux(const Profiles& u, int index, pLimiter limiter){// index for i + 1/2, index - 1 for i - 1/2
+        mVector temp(3);
+        double a = max(absMax(GetEigenValues(u[index])), absMax(GetEigenValues(u[index + 1])));
+        temp = (Flux(uNewRight(u, index, limiter)) + Flux(uNewLeft(u, index, limiter)));
+        temp -= a * (uNewRight(u, index, limiter) - uNewLeft(u, index, limiter));
+        temp *= 0.5;
+        return temp;
+    }
     void KTComputeForward(const Profiles& uPre, Profiles& uPost, double dt, pLimiter limiter){
         Profiles temp(nCells);
         for (int i = 1; i <= nCells; i++) {
@@ -273,17 +272,7 @@ namespace Limiter {
     mVector vanLeer(const mVector& R);
 }
 
-template<class T, class pf>
-T midpointRK(T& y0, double ta, double h,int stepNumber, pf& f){
-    T y = y0;
-    double tNow = ta;
-    for (int i = 1; i <= stepNumber; i++) {
-        y = y + h * f(tNow + 0.5 * h, y + 0.5 * h * f(tNow, y));
-        tNow += h;
-    }
-    std::cout << y;
-    return y;
-}
+
 
 typedef mVector (EulerSolver::*pMethod)(const mVector&, const mVector&, double);
     
